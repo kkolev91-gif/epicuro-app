@@ -1,0 +1,54 @@
+# Pubblica l'app su Firebase a ogni modifica del ramo main.
+# Serve una volta sola:
+#  - variabile del repository FIREBASE_PROJECT_ID (es. epicuro-varese)
+#  - segreto del repository FIREBASE_SERVICE_ACCOUNT (il file JSON della chiave)
+# Finché non sono impostati, il lavoro viene saltato senza errori.
+name: Pubblica su Firebase
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: ${{ vars.FIREBASE_PROJECT_ID != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Controlla che config.js sia compilato
+        run: |
+          if grep -q "INSERISCI" public/config.js; then
+            echo "::error::public/config.js contiene ancora i valori INSERISCI_… — completalo con i dati del progetto Firebase."
+            exit 1
+          fi
+
+      - name: Installa le dipendenze delle funzioni
+        working-directory: functions
+        run: npm ci
+
+      - name: Prepara le credenziali
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SA" ]; then echo "::error::Manca il segreto FIREBASE_SERVICE_ACCOUNT"; exit 1; fi
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+
+      - name: Pubblica (app, regole del database, funzioni)
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: npx --yes firebase-tools@13.29.1 deploy --project "${{ vars.FIREBASE_PROJECT_ID }}" --non-interactive --force
+
+      - name: Elimina le credenziali
+        if: always()
+        run: rm -f "$RUNNER_TEMP/sa.json"

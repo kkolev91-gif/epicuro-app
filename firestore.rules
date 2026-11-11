@@ -1,0 +1,102 @@
+rules_version = '2';
+
+// Epicuro Staff — regole di accesso al database.
+// Utenti: creati solo dall'amministratore (tramite le Cloud Functions).
+// Turni: lo staff legge solo quelli pubblicati; le bozze le vede solo l'amministratore.
+// Cantina: solo l'amministratore modifica vini e quantità; lo staff registra le vendite.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function userDoc() { return /databases/$(database)/documents/users/$(request.auth.uid); }
+    function active() { return signedIn() && exists(userDoc()) && get(userDoc()).data.active == true; }
+    function admin() { return active() && get(userDoc()).data.role == 'admin'; }
+    function setupPath() { return /databases/$(database)/documents/config/setup; }
+
+    // Prima configurazione: il primo account creato diventa amministratore, una sola volta.
+    match /config/setup {
+      allow read: if true;
+      allow create: if signedIn()
+        && !exists(setupPath())
+        && request.resource.data.adminUid == request.auth.uid
+        && getAfter(userDoc()).data.role == 'admin';
+    }
+
+    match /users/{uid} {
+      allow read: if active();
+      allow create: if signedIn() && request.auth.uid == uid
+        && !exists(setupPath()) && existsAfter(setupPath())
+        && request.resource.data.role == 'admin'
+        && request.resource.data.active == true;
+      // L'amministratore può cambiare nome, ruolo e colore. Creazione, password e rimozione
+      // passano dalle Cloud Functions.
+      allow update: if admin()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'role', 'color'])
+        && request.resource.data.role in ['admin', 'staff']
+        && !(uid == request.auth.uid && request.resource.data.role != 'admin');
+
+      // Token delle notifiche del telefono: ognuno gestisce solo i propri.
+      match /tokens/{token} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+    }
+
+    // Turni pubblicati: li leggono tutti, li scrive solo l'amministratore.
+    match /shifts/{week} {
+      allow read: if active();
+      allow write: if admin();
+    }
+    // Bozze dei turni: solo amministratore.
+    match /drafts/{week} {
+      allow read, write: if admin();
+    }
+
+    match /wines/{id} {
+      allow read: if active();
+      allow create, delete: if admin();
+      // Lo staff può solo far scorrere il contatore delle bottiglie vendute.
+      allow update: if admin() || (active()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sold'])
+        && request.resource.data.sold is int
+        && request.resource.data.sold - resource.data.sold <= 24
+        && resource.data.sold - request.resource.data.sold <= 24);
+    }
+
+    // Prenotazioni: tutto lo staff le inserisce, modifica e cancella.
+    function validRes() {
+      let d = request.resource.data;
+      return d.date is string && d.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d.time is string && d.time.matches('^[0-9]{2}:[0-9]{2}$')
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 60
+        && d.phone is string && d.phone.size() <= 30
+        && d.people is int && d.people >= 1 && d.people <= 200
+        && (!('note' in d) || (d.note is string && d.note.size() <= 300));
+    }
+    match /reservations/{id} {
+      allow read: if active();
+      allow create: if active() && validRes() && request.resource.data.by == request.auth.uid;
+      allow update: if active() && validRes() && request.resource.data.by == resource.data.by;
+      allow delete: if active();
+    }
+
+    // Giorni di indisponibilità: ognuno scrive i propri, l'amministratore li legge tutti.
+    match /unavail/{uid} {
+      allow read: if admin() || (active() && request.auth.uid == uid);
+      allow create, update: if active() && request.auth.uid == uid
+        && request.resource.data.dates is list && request.resource.data.dates.size() <= 400;
+    }
+
+    match /sales/{id} {
+      allow read: if active();
+      allow create: if active()
+        && request.resource.data.by == request.auth.uid
+        && request.resource.data.at == request.time
+        && request.resource.data.qty is int
+        && request.resource.data.qty >= 1 && request.resource.data.qty <= 24;
+      // Una vendita si annulla entro 30 minuti da chi l'ha registrata; l'amministratore sempre.
+      allow delete: if admin() || (active()
+        && resource.data.by == request.auth.uid
+        && request.time < resource.data.at + duration.value(30, 'm'));
+    }
+  }
+}
