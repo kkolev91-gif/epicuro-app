@@ -11,6 +11,7 @@ Chi chiede modifiche è il titolare: scrive in italiano e non è un programmator
 - `.github/workflows/deploy.yml` — ogni push su `main` pubblica su Firebase (hosting, regole, funzioni).
 - `tests/run.sh` + `tests/e2e.js` — test completi su emulatori Firebase con tre utenti (Marco admin, Giulia e Luca staff).
 - `GUIDA.md` — guida per il titolare (configurazione iniziale e uso).
+- `demo/` — demo locale con dati d'esempio: `bash demo/run.sh` (emulatori + `seed.js` + `server.js` sulla porta 8090, che inoltra login/database/funzioni dallo stesso indirizzo; in `config.js` servito dalla demo c'è `demo: true`). Utenti marco (admin), giulia, luca, sara, andrea, password `prova123`.
 
 ## Dati (Firestore)
 - `users/{uid}`: name, username, role (`admin`|`staff`), active, color. Sotto: `tokens/{id}` per le notifiche.

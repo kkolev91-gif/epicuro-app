@@ -15,7 +15,9 @@ import { getMessaging, getToken, onMessage, isSupported as messagingSupported } 
 /* ---------- configurazione ---------- */
 const CFG = self.EPICURO_CONFIG || {};
 const CONFIGURED = !!(CFG.firebase && !String(CFG.firebase.apiKey).startsWith('INSERISCI'));
-const LOCAL = ['localhost', '127.0.0.1'].includes(location.hostname);
+/* Modalità demo (demo/run.sh): login, database e funzioni di prova raggiunti dallo stesso indirizzo della pagina. */
+const DEMO = CFG.demo === true;
+const LOCAL = !DEMO && ['localhost', '127.0.0.1'].includes(location.hostname);
 const EMAIL_DOMAIN = 'staff.epicuro.app';
 const emailOf = (u) => `${String(u).trim().toLowerCase()}@${EMAIL_DOMAIN}`;
 
@@ -109,8 +111,10 @@ let app, auth, db, fns, messaging = null;
 if (CONFIGURED) {
   app = initializeApp(CFG.firebase);
   auth = getAuth(app);
-  db = initializeFirestore(app, LOCAL ? {} : { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
-  fns = getFunctions(app, CFG.region || 'europe-west1');
+  db = DEMO ? initializeFirestore(app, { host: location.host, ssl: location.protocol === 'https:', experimentalForceLongPolling: true })
+    : initializeFirestore(app, LOCAL ? {} : { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+  fns = getFunctions(app, DEMO ? location.origin : (CFG.region || 'europe-west1'));
+  if (DEMO) connectAuthEmulator(auth, location.origin, { disableWarnings: true });
   if (LOCAL) {
     connectAuthEmulator(auth, `http://${location.hostname}:9099`, { disableWarnings: true });
     connectFirestoreEmulator(db, location.hostname, 8080);
@@ -1172,7 +1176,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && S.
 if (!CONFIGURED) renderNotConfigured();
 else {
   onAuthStateChanged(auth, onAuth);
-  if ('serviceWorker' in navigator && !LOCAL) navigator.serviceWorker.register('/firebase-messaging-sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && !LOCAL && !DEMO) navigator.serviceWorker.register('/firebase-messaging-sw.js').catch(() => {});
 }
 // Per le prove automatiche.
 if (LOCAL) window.__epicuro = { S, render };
