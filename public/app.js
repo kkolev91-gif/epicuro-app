@@ -42,6 +42,7 @@ const ICON = {
   send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 3 10 14M21 3l-7 18-4-7-7-4Z"/></svg>',
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
   bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4Z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>',
+  qr: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM18 18h3v3h-3zM14 20h1M20 14h1"/></svg>',
   bottle: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 4h8v9c0 1.8.7 3.4 2 4.6 1.9 1.8 3 4.3 3 6.9V42a2 2 0 0 1-2 2H17a2 2 0 0 1-2-2V24.5c0-2.6 1.1-5.1 3-6.9 1.3-1.2 2-2.8 2-4.6Z"/><path d="M15 28h18"/></svg>',
   cal: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="6" y="9" width="36" height="33" rx="4"/><path d="M6 19h36M16 4v9M32 4v9"/></svg>',
 };
@@ -753,6 +754,7 @@ function usersSheet() {
     });
   };
   openSheet(`<h3>Utenti</h3><p class="sub">Chi può entrare nell'app. Le credenziali le comunichi tu a ciascuno.</p>
+  <button type="button" class="btn block" data-act="qr" style="margin-bottom:10px">${ICON.qr}QR per scaricare l'app</button>
   <div class="list" id="u-list"></div>
   <div class="hr" style="margin:14px 0 10px"></div>
   <form class="form" id="uf">
@@ -824,6 +826,7 @@ function accountSheet() {
     ${!pushOn && perm === 'default' && !(isIOS() && !isStandalone()) ? '<button class="btn sm primary" data-act="push">Attiva</button>' : ''}
     ${pushOn ? '<button class="btn sm" data-act="push-test">Prova</button>' : ''}</div></div>
   ${S.installEvt ? '<button class="btn block" data-act="install" style="margin-top:10px">Installa l\'app sul telefono</button>' : ''}
+  <button class="btn block" data-act="qr" style="margin-top:10px">${ICON.qr}Fai scaricare l'app a un collega</button>
   <form class="form" id="mf" style="margin-top:16px">
     <div class="eyebrow">Cambia la tua password</div>
     ${pwdField('m-old', 'Password attuale', { autocomplete: 'current-password' })}
@@ -843,6 +846,65 @@ function accountSheet() {
       } catch (err) { pe.textContent = err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' ? 'La password attuale non è corretta.' : friendlyError(err); pe.hidden = false; }
     };
   });
+}
+
+/* ---------- QR per scaricare l'app ---------- */
+/* Il QR contiene sempre l'indirizzo da cui l'app è aperta: resta giusto anche se il dominio cambia. */
+const APP_URL = () => location.origin + '/';
+function loadQrLib() {
+  if (window.qrcode) return Promise.resolve(window.qrcode);
+  return new Promise((res, rej) => {
+    const sc = document.createElement('script'); sc.src = '/vendor/qrcode.js';
+    sc.onload = () => res(window.qrcode); sc.onerror = () => rej(new Error('qr')); document.head.appendChild(sc);
+  });
+}
+async function drawQr(canvas, text, size) {
+  const qrcode = await loadQrLib();
+  await document.fonts.load('700 40px Cinzel').catch(() => {});
+  const qr = qrcode(0, 'H'); qr.addData(text); qr.make();
+  const n = qr.getModuleCount(), quiet = 4, cell = Math.max(2, Math.floor(size / (n + quiet * 2))), px = cell * (n + quiet * 2);
+  canvas.width = px; canvas.height = px;
+  const c = canvas.getContext('2d');
+  c.fillStyle = '#FFFFFF'; c.fillRect(0, 0, px, px);
+  c.fillStyle = '#B3121C';
+  for (let r = 0; r < n; r++) for (let k = 0; k < n; k++) if (qr.isDark(r, k)) c.fillRect((k + quiet) * cell, (r + quiet) * cell, cell, cell);
+  // Al centro la E di Epicuro (la correzione d'errore "H" permette di coprire questa parte).
+  const box = Math.round(n * cell * 0.22), x = (px - box) / 2, rad = box * 0.18;
+  c.fillStyle = '#FFFFFF'; c.beginPath(); c.roundRect(x - cell, x - cell, box + 2 * cell, box + 2 * cell, rad + cell); c.fill();
+  c.strokeStyle = '#B3121C'; c.lineWidth = Math.max(2, cell * 0.6); c.beginPath(); c.roundRect(x, x, box, box, rad); c.stroke();
+  c.fillStyle = '#B3121C'; c.font = `700 ${Math.round(box * 0.66)}px Cinzel, "Times New Roman", serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText('E', px / 2, px / 2 + box * 0.05);
+  return canvas;
+}
+const QR_STEPS = `<ol class="steps">
+  <li>Inquadra il codice con la <b>fotocamera</b> del telefono e apri il link.</li>
+  <li><b>iPhone:</b> in Safari tocca <b>Condividi</b> → <b>Aggiungi alla schermata Home</b>.<br><b>Android:</b> in Chrome tocca il menu ⋮ → <b>Installa app</b>.</li>
+  <li>Apri Epicuro dall'icona, entra con nome utente e password e attiva le notifiche.</li></ol>`;
+function qrSheet() {
+  const url = APP_URL();
+  openSheet(`<h3>Scarica l'app</h3><p class="sub">Fai inquadrare questo codice a chi deve installare l'app.</p>
+  <canvas id="qr-c" class="qr" width="300" height="300" aria-label="QR code con il link all'app"></canvas>
+  <p class="qr-url num">${esc(url.replace(/\/$/, ''))}</p>
+  ${QR_STEPS}
+  <p class="hint muted" style="margin:0;font-size:13px">Il codice apre solo l'app: per entrare servono nome utente e password, che crea l'amministratore.</p>
+  <div class="sheet-actions"><button class="btn" id="qr-copy">${ICON.copy}Copia link</button><button class="btn primary" id="qr-print">Stampa locandina</button></div>
+  <button class="btn ghost block" data-close style="margin-top:8px">Chiudi</button>`, (el) => {
+    drawQr(el.querySelector('#qr-c'), url, 600).catch(() => { el.querySelector('#qr-c').replaceWith(Object.assign(document.createElement('p'), { className: 'notice', textContent: 'Non è stato possibile disegnare il QR. Usa "Copia link".' })); });
+    el.querySelector('#qr-copy').onclick = (e) => copyText(url, e.currentTarget);
+    el.querySelector('#qr-print').onclick = () => printPoster(url);
+  });
+}
+async function printPoster(url) {
+  const pst = $('#poster');
+  pst.innerHTML = `<div class="poster-in"><span class="mark mark-e mark-lg" aria-hidden="true">E</span>
+    <h1>Epicuro Staff</h1><p class="tag">Birreria · Vineria · Cucina</p>
+    <img id="poster-qr" alt="QR code per scaricare l'app">
+    <p class="qr-url">${esc(url.replace(/\/$/, ''))}</p>${QR_STEPS}</div>`;
+  try { pst.querySelector('#poster-qr').src = (await drawQr(document.createElement('canvas'), url, 1000)).toDataURL('image/png'); } catch (e) { toast('QR non disponibile'); return; }
+  pst.hidden = false;
+  const done = () => { pst.hidden = true; window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  setTimeout(() => window.print(), 150);
 }
 
 /* ---------- notifiche ---------- */
@@ -1077,6 +1139,7 @@ document.addEventListener('click', (e) => {
     account: () => accountSheet(),
     push: () => enablePush(),
     'push-test': () => testPush(),
+    qr: () => qrSheet(),
     'hide-push': () => { lsSet('epicuro-hide-push', '1'); render(); },
     install: async () => { const ev = S.installEvt; S.installEvt = null; closeSheet(); if (ev) { ev.prompt(); await ev.userChoice.catch(() => {}); } },
     'undo-sale': () => armButton(b, 'Conferma', () => { const s = S.sales.find((x) => x.id === b.dataset.id); if (s) undoSale(s); }),

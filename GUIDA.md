@@ -85,6 +85,7 @@ firebase deploy
 1. Apri l'indirizzo dal tuo telefono **subito dopo la pubblicazione**: la prima persona che entra crea l'account **amministratore**. Scegli nome, nome utente e password.
 2. **Turni → Utenti** → aggiungi ogni dipendente (nome, nome utente, password; ne viene proposta una già pronta).
 3. Tocca **Copia messaggio** e invialo alla persona su WhatsApp: contiene link, nome utente e password.
+4. Per far installare l'app: **Utenti → QR per scaricare l'app**. Fallo inquadrare con la fotocamera, oppure tocca **Stampa locandina** e appendila nel retro. Il QR contiene solo il link: per entrare servono comunque nome utente e password.
 
 ## 8. Sul telefono di ogni dipendente
 

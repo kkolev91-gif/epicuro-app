@@ -276,6 +276,25 @@ html,body{height:auto}
 .mark-e{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;flex:none;border-radius:10px;background:#FFFFFF;color:var(--band);
   font-family:"Cinzel","Trajan Pro","Times New Roman",serif;font-weight:700;font-size:24px;line-height:1;padding-top:3px;box-shadow:inset 0 0 0 1.5px var(--band),inset 0 0 0 3px #FFFFFF,inset 0 0 0 3.8px color-mix(in srgb,var(--band) 45%,#FFFFFF)}
 .mark-e.mark-lg{width:72px;height:72px;border-radius:18px;font-size:50px;padding-top:6px}
+
+/* QR e locandina */
+.qr{display:block;width:min(100%,280px);height:auto;aspect-ratio:1;margin:4px auto 0;border-radius:12px;box-shadow:inset 0 0 0 1px var(--line)}
+.qr-url{text-align:center;font-weight:700;color:var(--primary);margin:6px 0 4px;overflow-wrap:anywhere}
+.steps{margin:6px 0 10px;padding-left:22px;display:flex;flex-direction:column;gap:6px;font-size:14px}
+#poster{background:#FFFFFF;color:#2B1214}
+.poster-in{max-width:170mm;margin:0 auto;padding:14mm 10mm;text-align:center;display:flex;flex-direction:column;align-items:center;gap:6mm}
+.poster-in h1{font-family:"Cinzel",serif;font-size:34pt;color:#B3121C;margin:0}
+.poster-in .tag{margin:-4mm 0 0;letter-spacing:.2em;text-transform:uppercase;font-size:11pt;color:#7A5B5E}
+.poster-in img{width:110mm;max-width:100%;height:auto;aspect-ratio:1}
+.poster-in .qr-url{font-size:14pt}
+.poster-in .steps{text-align:left;font-size:13pt;gap:3mm}
+@media print{
+  @page{size:A4;margin:10mm}
+  body{background:#FFFFFF!important}
+  body>*:not(#poster){display:none!important}
+  #poster{display:block!important}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
 </style>
 <script src="/config.js"></script>
 <script type="module" src="/app.js"></script>
@@ -327,5 +346,6 @@ html,body{height:auto}
   <div class="sheet" role="dialog" aria-modal="true" id="sheet-body"></div>
 </div>
 <div class="toast" id="toast" hidden role="status"></div>
+<div id="poster" hidden></div>
 </body>
 </html>

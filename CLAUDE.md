@@ -5,6 +5,7 @@ Chi chiede modifiche è il titolare: scrive in italiano e non è un programmator
 
 ## Struttura
 - `public/` — l'app (HTML/CSS/JS senza build). `index.html` (stile e struttura), `app.js` (tutta la logica, modulo ES con Firebase SDK 10.12.2 da gstatic), `config.js` (configurazione Firebase pubblica, letta anche dal service worker), `firebase-messaging-sw.js` (notifiche push + copia offline), `manifest.webmanifest`, `icons/`.
+- `public/vendor/qrcode.js` — qrcode-generator (MIT) per il QR "Scarica l'app" e la locandina stampabile; il QR contiene sempre `location.origin`. `tests/vendor/jsQR.js` lo decodifica nei test.
 - `functions/index.js` — Cloud Functions (regione `europe-west1`): `createStaff`, `setStaffPassword`, `removeStaff` (solo admin) e `notifyOnPublish` (notifica personalizzata a ogni dipendente quando l'admin pubblica i turni).
 - `firestore.rules` — permessi. Va aggiornato insieme a ogni nuova collezione o campo.
 - `.github/workflows/deploy.yml` — ogni push su `main` pubblica su Firebase (hosting, regole, funzioni).

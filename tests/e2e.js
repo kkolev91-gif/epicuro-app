@@ -203,6 +203,23 @@ ok(!/Luca/.test(await txt(A,'#u-list')),'Luca rimosso dall\'elenco');
 ok(!(await idToken('luca','nuova789')),'Luca non può più entrare');
 ok(!(await A.locator('.li:has-text("Marco") [data-u-del]').count()),'l\'admin non può rimuovere se stesso');
 await A.click('#sheet button[data-close]');
+// 8b. QR per scaricare l'app (admin) + locandina
+await A.click('[data-act=users]');await A.waitForSelector('#u-list');await A.click('#sheet [data-act=qr]');await A.waitForSelector('#qr-c');await sleep(1200);
+await A.addScriptTag({path:require('path').join(__dirname,'vendor','jsQR.js')});
+const decoded=await A.evaluate(()=>{const c=document.getElementById('qr-c');const d=c.getContext('2d').getImageData(0,0,c.width,c.height);const r=jsQR(d.data,c.width,c.height);return r&&r.data});
+ok(decoded===BASE,'il QR si legge e porta all\'app: '+decoded);
+ok(/127\.0\.0\.1:5000/.test(await A.locator('.qr-url').innerText()),'sotto il QR c\'è anche il link scritto');
+await A.screenshot({path:SHOTS+'/8-qr.png'});
+await A.evaluate(()=>{window.__printed=0;window.print=()=>{window.__printed++}});
+await A.click('#qr-print');await sleep(1500);
+ok(await A.evaluate(()=>window.__printed===1&&!document.getElementById('poster').hidden&&document.getElementById('poster-qr').src.startsWith('data:image/png')),'locandina pronta per la stampa');
+const pdec=await A.evaluate(()=>new Promise(r=>{const i=document.getElementById('poster-qr');const c=document.createElement('canvas');c.width=i.naturalWidth;c.height=i.naturalHeight;const x=c.getContext('2d');x.drawImage(i,0,0);const d=x.getImageData(0,0,c.width,c.height);const q=jsQR(d.data,c.width,c.height);r(q&&q.data)}));
+ok(pdec===BASE,'il QR della locandina si legge');
+await A.emulateMedia({media:'print'});await A.screenshot({path:SHOTS+'/9-locandina.png',fullPage:true});await A.emulateMedia({media:'screen'});
+await A.evaluate(()=>window.dispatchEvent(new Event('afterprint')));await A.click('#sheet button[data-close]');
+// anche lo staff può mostrare il QR
+await P.click('#role');await P.waitForSelector('#sheet [data-act=qr]');await P.click('#sheet [data-act=qr]');await P.waitForSelector('#qr-c');await sleep(800);
+ok(await P.isVisible('#qr-copy'),'anche lo staff può mostrare il QR a un collega');await P.click('#sheet button[data-close]');
 // 9. Giulia cambia la propria password
 await P.click('#role');await P.waitForSelector('#mf');
 await P.fill('#m-old','vino123');await P.fill('#m-new','rosso2026');await P.click('#mf [type=submit]');await sleep(1200);

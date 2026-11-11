@@ -11,8 +11,8 @@ if (CONFIGURED) {
   firebase.messaging();
 }
 
-const CACHE = 'epicuro-v4';
-const SHELL = ['/', '/index.html', '/app.js', '/config.js', '/manifest.webmanifest', '/icons/icon-192.png'];
+const CACHE = 'epicuro-v5';
+const SHELL = ['/', '/index.html', '/app.js', '/config.js', '/manifest.webmanifest', '/icons/icon-192.png', '/vendor/qrcode.js'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).catch(() => {}));
   self.skipWaiting();
